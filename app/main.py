@@ -1,5 +1,5 @@
 import sys
-
+import os
 
 def main():
 
@@ -13,8 +13,20 @@ def main():
 
         if command.startswith("type"):
             check_command = command.replace("type", "", 1).strip()
-            print(f"{check_command} is a shell builtin" if check_command in built_in_commands 
-                    else  f"{check_command}: not found")
+    
+            if check_command in built_in_commands :
+                print(f"{check_command} is a shell builtin")
+            else :
+                all_paths = os.environ["PATH"]
+                directories = all_paths.split(":")
+                for directory in directories :
+                    potential_executable = directory + "/" + check_command
+                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK) :
+                        print(f"{check_command} is {potential_executable}")
+                        main()
+                    else :
+                        continue
+                print(f"{check_command}: not found")
             main()
             break
         elif command == "exit":
