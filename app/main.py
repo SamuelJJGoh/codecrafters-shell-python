@@ -40,20 +40,7 @@ def main():
             args = parts[1:] if len(parts) > 1 else []
             print(" ".join(args))
             continue
-    
-        # elif "echo" in command:
-        #     output = command.replace("echo", "").strip()
-        #     if output.startswith('"') and output.endswith('"'):
-        #         output = '"' + output + '"'
-        #         output = output.replace('"', '')
-        #     elif '"' in output:
-        #         output = output.replace('"', '')
-        #     else :
-        #         output = output.replace('"', '')
-        #         output = (' ').join(output.split())
-        #     print(output)
-        #     continue
-
+        
         elif command == "pwd":
             print(os.getcwd())
             continue
