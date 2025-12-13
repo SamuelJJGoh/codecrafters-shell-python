@@ -4,7 +4,7 @@ import subprocess
 
 def main():
 
-    built_in_commands = ["echo", "exit", "type"]
+    built_in_commands = ["echo", "exit", "type", "pwd"]
 
     while True:
         sys.stdout.write("$ ")
@@ -37,6 +37,10 @@ def main():
         elif "echo" in command:
             output = command.replace("echo", "").strip()
             print(output)
+            main()
+            break
+        elif command == "pwd":
+            print(os.getcwd())
             main()
             break
         else : 
