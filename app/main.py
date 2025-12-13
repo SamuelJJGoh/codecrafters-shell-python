@@ -4,7 +4,7 @@ import subprocess
 
 def main():
 
-    built_in_commands = ["echo", "exit", "type", "pwd"]
+    built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
 
     while True:
         sys.stdout.write("$ ")
@@ -43,6 +43,16 @@ def main():
             print(os.getcwd())
             main()
             break
+        elif command.startswith("cd"):
+            target_directory = command.replace("cd", "", 1).strip()
+            if os.path.isdir(target_directory):
+                os.chdir(target_directory)
+                main()
+                break
+            else :
+                print(f"cd: {target_directory}: No such file or directory")
+                main()
+                break
         else : 
             program_name = command.split(" ")[0]
             args = command.split(" ")[1:]
