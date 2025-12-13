@@ -8,73 +8,69 @@ def main():
 
     while True:
         sys.stdout.write("$ ")
-
-        # Wait for user input
         command = input()
 
-        if command.startswith("type"):
+        if command.startswith("type"): 
             check_command = command.replace("type", "", 1).strip()
             if check_command == "":
-                main()
-                break
+                continue
             elif check_command in built_in_commands :
                 print(f"{check_command} is a shell builtin")
             else :
                 all_paths = os.environ["PATH"]
                 directories = all_paths.split(":")
+                found_path = None
                 for directory in directories :
                     potential_executable = directory + "/" + check_command
                     if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK) :
-                        print(f"{check_command} is {potential_executable}")
-                        main()
-                    else :
-                        continue
-                print(f"{check_command}: not found")
-            main()
-            break
-        elif command == "exit":
-            break            
+                        found_path = potential_executable
+                        break
+                if found_path:
+                    print(f"{check_command} is {found_path}")
+                else:
+                    print(f"{check_command}: not found")
+            continue
+
+        elif command.strip() == "exit":
+            break  
+
         elif "echo" in command:
             output = command.replace("echo", "").strip()
             print(output)
-            main()
-            break
+            continue
+
         elif command == "pwd":
             print(os.getcwd())
-            main()
-            break
+            continue
+
         elif command.startswith("cd"):
             target_directory = command.replace("cd", "", 1).strip()
             if target_directory == "~":
                 home_directory = os.environ["HOME"]
                 os.chdir(home_directory)
-                main()
-                break
             elif os.path.isdir(target_directory):
                 os.chdir(target_directory)
-                main()
-                break
             else :
-                print(f"cd: {target_directory}: No such file or directory")
-                main()
-                break
+                print(f"cd: {target_directory}: No such file or directory")   
+            continue
+        
         else : 
             program_name = command.split(" ")[0]
             args = command.split(" ")[1:]
             all_paths = os.environ["PATH"]
             directories = all_paths.split(":")
+            found_executable = False
             for directory in directories :
                 potential_executable = directory + "/" + program_name
                 if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK) :
                     subprocess.call([program_name, *args])
-                    main()
+                    found_executable = True
+                    break
                 else : 
                     continue
+            if found_executable :
+                continue
         print(f"{command}: command not found")
-
-        
-
-
 
 if __name__ == "__main__":
     main()
