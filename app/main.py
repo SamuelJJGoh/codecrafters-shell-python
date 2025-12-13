@@ -45,7 +45,12 @@ def main():
             break
         elif command.startswith("cd"):
             target_directory = command.replace("cd", "", 1).strip()
-            if os.path.isdir(target_directory):
+            if target_directory == "~":
+                home_directory = os.environ["HOME"]
+                os.chdir(home_directory)
+                main()
+                break
+            elif os.path.isdir(target_directory):
                 os.chdir(target_directory)
                 main()
                 break
