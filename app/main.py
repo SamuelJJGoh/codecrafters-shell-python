@@ -6,6 +6,8 @@ import shlex
 def main():
 
     built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
+    all_paths = os.environ["PATH"]
+    directories = all_paths.split(":")
 
     while True:
         sys.stdout.write("$ ")
@@ -18,8 +20,6 @@ def main():
             elif check_command in built_in_commands :
                 print(f"{check_command} is a shell builtin")
             else :
-                all_paths = os.environ["PATH"]
-                directories = all_paths.split(":")
                 found_path = None
                 for directory in directories :
                     potential_executable = directory + "/" + check_command
@@ -34,13 +34,51 @@ def main():
 
         elif command.strip() == "exit":
             break  
-
+        
         elif command.startswith("echo"):
-            parts = shlex.split(command)
-            args = parts[1:] if len(parts) > 1 else []
+            tokens = shlex.split(command)
+            args = tokens[1:] if len(tokens) > 1 else []
+            redir_operator = None
+            if ">" in args:
+                redir_operator = ">"
+            elif "1>" in args:
+                redir_operator ="1>"
+            
+            if redir_operator:
+                redir_operator_index = args.index(redir_operator)
+                redir_args = args[:redir_operator_index]
+                redir_file = args[redir_operator_index + 1] 
+
+                with open(redir_file, "w") as f:
+                    for arg in redir_args:
+                        f.write(f"{arg}\n")
+                continue
             print(" ".join(args))
             continue
         
+        elif ">" in command: 
+            tokens = shlex.split(command)
+            program_name = tokens[0]
+            args = tokens[1:] if len(tokens) > 1 else []
+            redir_operator = None
+            if ">" in args:
+                redir_operator = ">"
+            elif "1>" in args:
+                redir_operator ="1>"
+            
+            if redir_operator:
+                redir_operator_index = args.index(redir_operator)
+                redir_args = args[:redir_operator_index]
+                redir_file = args[redir_operator_index + 1] 
+
+                for directory in directories:
+                    potential_executable = directory + "/" + program_name
+                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
+                        with open(redir_file, "w") as f:
+                            subprocess.run([potential_executable, *redir_args], stdout=f)
+                        break
+                continue
+
         elif command == "pwd":
             print(os.getcwd())
             continue
@@ -55,12 +93,10 @@ def main():
             else :
                 print(f"cd: {target_directory}: No such file or directory")   
             continue
-        
+
         else : 
-            parts = shlex.split(command)
-            program_name, *args = parts
-            all_paths = os.environ["PATH"]
-            directories = all_paths.split(":")
+            tokens = shlex.split(command)
+            program_name, *args = tokens
             found_executable = False
             for directory in directories :
                 potential_executable = directory + "/" + program_name
@@ -72,6 +108,7 @@ def main():
                     continue
             if found_executable :
                 continue
+
         print(f"{command}: command not found")
 
 if __name__ == "__main__":
