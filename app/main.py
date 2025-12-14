@@ -35,7 +35,7 @@ def main():
         elif command.strip() == "exit":
             break  
         
-        elif command.startswith("echo"):
+        elif command.startswith("echo") and "2>" not in command:
             tokens = shlex.split(command)
             args = tokens[1:] if len(tokens) > 1 else []
             redir_operator = None
@@ -55,6 +55,25 @@ def main():
                 continue
             print(" ".join(args))
             continue
+            
+        elif "2>" in command:
+            tokens = shlex.split(command)
+            program_name = tokens[0]
+            args = tokens[1:] if len(tokens) > 1 else []
+            redir_operator = "2>"
+
+            if redir_operator:
+                redir_operator_index = args.index(redir_operator)
+                redir_args = args[:redir_operator_index]
+                redir_file = args[redir_operator_index + 1] 
+
+                for directory in directories:
+                    potential_executable = directory + "/" + program_name
+                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
+                        with open(redir_file, "w") as f:
+                            subprocess.run([potential_executable, *redir_args], stderr=f)
+                        break
+                continue
         
         elif ">" in command: 
             tokens = shlex.split(command)
