@@ -205,6 +205,51 @@ def main():
             else :
                 print(f"cd: {target_directory}: No such file or directory")   
             continue
+    
+        elif "|" in command:
+            # Detect pipeline and split into two commands
+            parts = command.split("|")
+            left_before_split = parts[0].strip()
+            right_before_split = parts[1].strip()
+
+            # Tokenize each side
+            left = shlex.split(left_before_split)
+            right = shlex.split(right_before_split)
+
+            if not left or not right:
+                # nothing to run on one side
+                continue
+
+            left_cmd, *left_args = left
+            right_cmd, *right_args = right
+
+            # Create a pipe
+            read_fd, write_fd = os.pipe()
+
+            # FD = file descriptor
+            pid1 = os.fork()
+            if pid1 == 0:
+                # Child 1
+                os.dup2(write_fd, 1) # replace stdout (FD 1) with the pipe's write end
+                os.close(read_fd)
+                os.close(write_fd)
+                os.execvp(left_cmd, [left_cmd, *left_args])
+
+            pid2 = os.fork()
+            if pid2 == 0:
+                # Child 2
+                os.dup2(read_fd, 0) # replace stdin (FD, 0) with the pipe's read end
+                os.close(write_fd)
+                os.close(read_fd)
+                os.execvp(right_cmd, [right_cmd, *right_args])
+
+            # Parent closes both pipe ends and wait for both children
+            os.close(read_fd)
+            os.close(write_fd)
+            os.waitpid(pid1, 0)
+            os.waitpid(pid2, 0)
+
+            continue
 
         else : 
             tokens = shlex.split(command)
