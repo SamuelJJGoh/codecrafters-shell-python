@@ -35,7 +35,8 @@ def main():
         elif command.strip() == "exit":
             break  
         
-        elif command.startswith("echo") and "2>" not in command:
+        # echo with redirect/append standard output
+        elif command.startswith("echo") and "2>" not in command and "2>>" not in command:
             tokens = shlex.split(command)
             args = tokens[1:] if len(tokens) > 1 else []
             redir_operator = None
@@ -70,13 +71,20 @@ def main():
 
             print(" ".join(args))
             continue
-            
-        elif "2>" in command:
+
+        # redirect/append standard errors
+        elif "2>" in command or "2>>" in command:
             tokens = shlex.split(command)
             program_name = tokens[0]
             args = tokens[1:] if len(tokens) > 1 else []
-            redir_operator = "2>"
+
+            redir_operator = None
+            redir_append_operator = None
             
+            if "2>" in args:
+                redir_operator = "2>"
+            elif "2>>" in args:
+                redir_append_operator ="2>>"
 
             if redir_operator:
                 redir_operator_index = args.index(redir_operator)
@@ -90,7 +98,21 @@ def main():
                             subprocess.run([potential_executable, *redir_args], stderr=f)
                         break
                 continue
+            elif redir_append_operator:
+                redir_append_operator_index = args.index(redir_append_operator)
+                redir_append_args = args[:redir_append_operator_index]
+                redir_append_file = args[redir_append_operator_index + 1] 
+
+                for directory in directories:
+                    potential_executable = directory + "/" + program_name
+                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
+                        with open(redir_append_file, "a") as f:
+                            subprocess.run([potential_executable, *redir_append_args], stderr=f)
+                        break
+                continue
         
+        
+        # other commands with redirect/append standard output
         elif ">" in command: 
             tokens = shlex.split(command)
             program_name = tokens[0]
