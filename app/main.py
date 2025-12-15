@@ -39,10 +39,15 @@ def main():
             tokens = shlex.split(command)
             args = tokens[1:] if len(tokens) > 1 else []
             redir_operator = None
+            redir_append_operator = None
             if ">" in args:
                 redir_operator = ">"
             elif "1>" in args:
                 redir_operator ="1>"
+            elif ">>" in args:
+                redir_append_operator = ">>"
+            elif "1>>" in args:
+                redir_append_operator = "1>>"
             
             if redir_operator:
                 redir_operator_index = args.index(redir_operator)
@@ -53,6 +58,16 @@ def main():
                     for arg in redir_args:
                         f.write(f"{arg}\n")
                 continue
+            elif redir_append_operator:
+                redir_append_operator_index = args.index(redir_append_operator)
+                redir_append_args = args[:redir_append_operator_index]
+                redir_append_file = args[redir_append_operator_index + 1] 
+
+                with open(redir_append_file, "a") as f:
+                    for arg in redir_append_args:
+                        f.write(f"{arg}\n")
+                continue
+
             print(" ".join(args))
             continue
             
@@ -61,6 +76,7 @@ def main():
             program_name = tokens[0]
             args = tokens[1:] if len(tokens) > 1 else []
             redir_operator = "2>"
+            
 
             if redir_operator:
                 redir_operator_index = args.index(redir_operator)
@@ -80,10 +96,16 @@ def main():
             program_name = tokens[0]
             args = tokens[1:] if len(tokens) > 1 else []
             redir_operator = None
+            redir_append_operator = None
+
             if ">" in args:
                 redir_operator = ">"
             elif "1>" in args:
                 redir_operator ="1>"
+            elif ">>" in args:
+                redir_append_operator = ">>"
+            elif "1>>" in args:
+                redir_append_operator = "1>>"
             
             if redir_operator:
                 redir_operator_index = args.index(redir_operator)
@@ -95,6 +117,18 @@ def main():
                     if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
                         with open(redir_file, "w") as f:
                             subprocess.run([potential_executable, *redir_args], stdout=f)
+                        break
+                continue
+            elif redir_append_operator:
+                redir_append_operator_index = args.index(redir_append_operator)
+                redir_append_args = args[:redir_append_operator_index]
+                redir_append_file = args[redir_append_operator_index + 1] 
+
+                for directory in directories:
+                    potential_executable = directory + "/" + program_name
+                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
+                        with open(redir_append_file, "a") as f:
+                            subprocess.run([potential_executable, *redir_append_args], stdout=f)
                         break
                 continue
 
