@@ -8,11 +8,20 @@ built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
 all_paths = os.environ["PATH"]
 directories = all_paths.split(":")
 
-def completer(text, state):
+def built_in_completer(text, state):
     if text == "":
         return None
     
-    matches =  [cmd + " " for cmd in built_in_commands if cmd.startswith(text)]
+    matches = [cmd + " " for cmd in built_in_commands if cmd.startswith(text)]
+
+    for directory in directories:
+        try:
+            for entry in os.listdir(directory):
+                potential = os.path.join(directory, entry)
+                if entry.startswith(text) and os.path.isfile(potential) and os.access(potential, os.X_OK):
+                    matches.append(entry + " ")
+        except OSError:
+            continue
     
     if not matches:
         sys.stdout.write("\a")
@@ -26,7 +35,8 @@ def completer(text, state):
 
 def main():
 
-    readline.set_completer(completer)
+    readline.set_completer(built_in_completer)
+
     if "libedit" in readline.__doc__:
         readline.parse_and_bind("bind ^I rl_complete") # TAB key for macOS
     else:
