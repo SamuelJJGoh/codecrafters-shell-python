@@ -8,6 +8,45 @@ built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
 all_paths = os.environ["PATH"]
 directories = all_paths.split(":")
 
+def run_builtin_for_pipeline(cmd, args):
+
+    if cmd == "type":
+        if not args:
+            os._exit(0) 
+
+        check = args[0]
+        if check in built_in_commands:
+            print(f"{check} is a shell builtin")
+        else:
+            found_path = None
+            for directory in directories:
+                potential_executable = directory + "/" + check
+                if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
+                    found_path = potential_executable
+                    break
+            if found_path:
+                print(f"{check} is {found_path}")
+            else:
+                print(f"{check}: not found")
+
+        os._exit(0)
+
+    elif cmd == "echo":
+        print(" ".join(args))
+        os._exit(0)
+
+    elif cmd == "pwd":
+        print(os.getcwd())
+        os._exit(0)
+
+    elif cmd == "exit":
+        os._exit(0)
+
+    elif cmd == "cd":
+        os._exit(0)
+
+    return  # Not a builtin → fall back to execvp
+
 def built_in_completer(text, state):
     if text == "":
         return None
@@ -49,8 +88,63 @@ def main():
         command = input("$ ")
         if command.strip() == "":
             continue
-            
-        if command.startswith("type"): 
+
+        if "|" in command:
+            # Detect pipeline and split into two commands
+            parts = command.split("|")
+            left_before_split = parts[0].strip()
+            right_before_split = parts[1].strip()
+
+            # Tokenize each side
+            left = shlex.split(left_before_split)
+            right = shlex.split(right_before_split)
+
+            if not left or not right:
+                # nothing to run on one side
+                continue
+
+            left_cmd, *left_args = left
+            right_cmd, *right_args = right
+
+            # Create a pipe
+            read_fd, write_fd = os.pipe()
+
+            # FD = file descriptor
+            pid1 = os.fork()
+            if pid1 == 0:
+                # Child 1
+                os.dup2(write_fd, 1) # replace stdout (FD 1) with the pipe's write end
+                os.close(read_fd)
+                os.close(write_fd)
+
+                if left_cmd in built_in_commands:
+                    run_builtin_for_pipeline(left_cmd, left_args)
+
+                os.execvp(left_cmd, [left_cmd, *left_args])
+                os._exit(1) # Exit status 1 = failure
+
+            pid2 = os.fork()
+            if pid2 == 0:
+                # Child 2
+                os.dup2(read_fd, 0) # replace stdin (FD, 0) with the pipe's read end
+                os.close(write_fd)
+                os.close(read_fd)
+
+                if right_cmd in built_in_commands:
+                    run_builtin_for_pipeline(right_cmd, right_args)
+
+                os.execvp(right_cmd, [right_cmd, *right_args])
+                os._exit(1)
+
+            # Parent closes both pipe ends and wait for both children
+            os.close(read_fd)
+            os.close(write_fd)
+            os.waitpid(pid1, 0)
+            os.waitpid(pid2, 0)
+
+            continue
+      
+        elif command.startswith("type"): 
             check_command = command.replace("type", "", 1).strip()
             if check_command == "":
                 continue
@@ -206,51 +300,6 @@ def main():
                 print(f"cd: {target_directory}: No such file or directory")   
             continue
     
-        elif "|" in command:
-            # Detect pipeline and split into two commands
-            parts = command.split("|")
-            left_before_split = parts[0].strip()
-            right_before_split = parts[1].strip()
-
-            # Tokenize each side
-            left = shlex.split(left_before_split)
-            right = shlex.split(right_before_split)
-
-            if not left or not right:
-                # nothing to run on one side
-                continue
-
-            left_cmd, *left_args = left
-            right_cmd, *right_args = right
-
-            # Create a pipe
-            read_fd, write_fd = os.pipe()
-
-            # FD = file descriptor
-            pid1 = os.fork()
-            if pid1 == 0:
-                # Child 1
-                os.dup2(write_fd, 1) # replace stdout (FD 1) with the pipe's write end
-                os.close(read_fd)
-                os.close(write_fd)
-                os.execvp(left_cmd, [left_cmd, *left_args])
-
-            pid2 = os.fork()
-            if pid2 == 0:
-                # Child 2
-                os.dup2(read_fd, 0) # replace stdin (FD, 0) with the pipe's read end
-                os.close(write_fd)
-                os.close(read_fd)
-                os.execvp(right_cmd, [right_cmd, *right_args])
-
-            # Parent closes both pipe ends and wait for both children
-            os.close(read_fd)
-            os.close(write_fd)
-            os.waitpid(pid1, 0)
-            os.waitpid(pid2, 0)
-
-            continue
-
         else : 
             tokens = shlex.split(command)
             program_name, *args = tokens
