@@ -9,12 +9,20 @@ all_paths = os.environ["PATH"]
 directories = all_paths.split(":")
 
 def completer(text, state):
+    if text == "":
+        return None
+    
     matches =  [cmd + " " for cmd in built_in_commands if cmd.startswith(text)]
     
-    if state > len(matches):
+    if not matches:
+        sys.stdout.write("\a")
+        sys.stdout.flush()
         return None
-    else:
+
+    if state < len(matches):
         return matches[state]
+    else:
+        return None
 
 def main():
 
@@ -25,9 +33,10 @@ def main():
         readline.parse_and_bind("tab: complete")
 
     while True:
-        sys.stdout.write("$ ")
-        command = input()
-                    
+        command = input("$ ")
+        if command.strip() == "":
+            continue
+            
         if command.startswith("type"): 
             check_command = command.replace("type", "", 1).strip()
             if check_command == "":
