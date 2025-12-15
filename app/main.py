@@ -2,17 +2,32 @@ import sys
 import os
 import subprocess
 import shlex
+import readline
+
+built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
+all_paths = os.environ["PATH"]
+directories = all_paths.split(":")
+
+def completer(text, state):
+    matches =  [cmd + " " for cmd in built_in_commands if cmd.startswith(text)]
+    
+    if state > len(matches):
+        return None
+    else:
+        return matches[state]
 
 def main():
 
-    built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
-    all_paths = os.environ["PATH"]
-    directories = all_paths.split(":")
+    readline.set_completer(completer)
+    if "libedit" in readline.__doc__:
+        readline.parse_and_bind("bind ^I rl_complete") # TAB key for macOS
+    else:
+        readline.parse_and_bind("tab: complete")
 
     while True:
         sys.stdout.write("$ ")
         command = input()
-                
+                    
         if command.startswith("type"): 
             check_command = command.replace("type", "", 1).strip()
             if check_command == "":
@@ -80,7 +95,7 @@ def main():
 
             redir_operator = None
             redir_append_operator = None
-            
+
             if "2>" in args:
                 redir_operator = "2>"
             elif "2>>" in args:
