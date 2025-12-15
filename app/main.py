@@ -12,14 +12,14 @@ def built_in_completer(text, state):
     if text == "":
         return None
     
-    matches = [cmd + " " for cmd in built_in_commands if cmd.startswith(text)]
+    matches = [cmd for cmd in built_in_commands if cmd.startswith(text)]
 
     for directory in directories:
         try:
             for entry in os.listdir(directory):
                 potential = os.path.join(directory, entry)
                 if entry.startswith(text) and os.path.isfile(potential) and os.access(potential, os.X_OK):
-                    matches.append(entry + " ")
+                    matches.append(entry)
         except OSError:
             continue
     
@@ -28,7 +28,10 @@ def built_in_completer(text, state):
         sys.stdout.flush()
         return None
 
+    matches = sorted(set(matches)) # set removes duplicates; echo exists in built in AND external
     if state < len(matches):
+        if len(matches) == 1:
+            return matches[state] + " "
         return matches[state]
     else:
         return None
