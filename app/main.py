@@ -85,7 +85,7 @@ def main():
         readline.parse_and_bind("tab: complete")
 
     while True:
-        command = input("$ ")
+        command = input("$ ").strip()
         if command.strip() == "":
             continue
 
@@ -140,9 +140,22 @@ def main():
             
         elif command.startswith("history"):
             history_length = readline.get_current_history_length()
-            if command.replace("history", "").strip() == "":
+            command = command.replace("history", "", 1).strip()
+            if command == "":
                 for i in range(history_length):
                     print (f"    {i+1}  {readline.get_history_item(i+1)}")
+            elif command.startswith("-r"):
+                read_history_cmd = shlex.split(command)
+                file_path = read_history_cmd[1]
+
+                for directory in directories:
+                    candidate = os.path.join(directory, file_path)
+                    if os.path.isfile(candidate):
+                        readline.read_history_file(candidate)
+                        break     
+            
+                continue
+
             else:
                 limit = int(command.replace("history", "").strip())
                 for i in range(history_length - limit, history_length):
