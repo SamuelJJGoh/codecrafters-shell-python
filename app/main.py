@@ -137,6 +137,12 @@ def main():
                 os.waitpid(pid, 0)
 
             continue
+            
+        elif command == "history":
+            for i in range(readline.get_current_history_length()):
+                print (f"    {i+1}  {readline.get_history_item(i+1)}")
+            
+            continue
       
         elif command.startswith("type"): 
             check_command = command.replace("type", "", 1).strip()
