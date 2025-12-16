@@ -141,9 +141,11 @@ def main():
         elif command.startswith("history"):
             history_length = readline.get_current_history_length()
             command = command.replace("history", "", 1).strip()
+
             if command == "":
                 for i in range(history_length):
                     print (f"    {i+1}  {readline.get_history_item(i+1)}")
+
             elif command.startswith("-r"):
                 read_history_cmd = shlex.split(command)
                 file_path = read_history_cmd[1]
@@ -153,7 +155,14 @@ def main():
                     if os.path.isfile(candidate):
                         readline.read_history_file(candidate)
                         break     
-            
+                continue
+
+            elif command.startswith("-w"):
+                read_history_cmd = shlex.split(command)
+                file_path = read_history_cmd[1]
+                
+                candidate = os.path.join(os.getcwd(), file_path)
+                readline.write_history_file(candidate)
                 continue
 
             else:
