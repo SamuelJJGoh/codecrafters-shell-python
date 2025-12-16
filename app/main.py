@@ -90,57 +90,51 @@ def main():
             continue
 
         if "|" in command:
-            # Detect pipeline and split into two commands
-            parts = command.split("|")
-            left_before_split = parts[0].strip()
-            right_before_split = parts[1].strip()
+            # Detect pipeline and split into N commands then tokenize all 
+            parts = [shlex.split(part.strip()) for part in command.split("|")]
+            pids = []
+            prev_read = None
 
-            # Tokenize each side
-            left = shlex.split(left_before_split)
-            right = shlex.split(right_before_split)
+            for i, part in enumerate(parts):
+                if not part:
+                    continue
 
-            if not left or not right:
-                # nothing to run on one side
-                continue
+                cmd, *args = part
 
-            left_cmd, *left_args = left
-            right_cmd, *right_args = right
+                # Create a pipe unless it is the last command (last command doesn't have another command to feed)
+                if i < len(parts) - 1:
+                    read_fd, write_fd = os.pipe() 
+                else:
+                    read_fd, write_fd = None, None
 
-            # Create a pipe
-            read_fd, write_fd = os.pipe()
+                # FD = file descriptor
+                pid = os.fork()
+                if pid == 0:
+                    if prev_read is not None:
+                        os.dup2(prev_read, 0) # replace stdin (FD 0) with the pipe's read end
+                        os.close(prev_read)
+                    if write_fd is not None:
+                        os.dup2(write_fd, 1) # replace stdout (FD 1) with the pipe's write end
+                        os.close(write_fd)
 
-            # FD = file descriptor
-            pid1 = os.fork()
-            if pid1 == 0:
-                # Child 1
-                os.dup2(write_fd, 1) # replace stdout (FD 1) with the pipe's write end
-                os.close(read_fd)
-                os.close(write_fd)
+                    if cmd in built_in_commands:
+                        run_builtin_for_pipeline(cmd, args)
+                    else:
+                        os.execvp(cmd, [cmd, *args])
+                        os._exit(1) # Exit status 1 = failure
 
-                if left_cmd in built_in_commands:
-                    run_builtin_for_pipeline(left_cmd, left_args)
+                # Parent closes both pipe ends
+                if prev_read is not None:
+                    os.close(prev_read)
+                if write_fd is not None:
+                    os.close(write_fd)
 
-                os.execvp(left_cmd, [left_cmd, *left_args])
-                os._exit(1) # Exit status 1 = failure
+                prev_read = read_fd
+                pids.append(pid)
 
-            pid2 = os.fork()
-            if pid2 == 0:
-                # Child 2
-                os.dup2(read_fd, 0) # replace stdin (FD, 0) with the pipe's read end
-                os.close(write_fd)
-                os.close(read_fd)
-
-                if right_cmd in built_in_commands:
-                    run_builtin_for_pipeline(right_cmd, right_args)
-
-                os.execvp(right_cmd, [right_cmd, *right_args])
-                os._exit(1)
-
-            # Parent closes both pipe ends and wait for both children
-            os.close(read_fd)
-            os.close(write_fd)
-            os.waitpid(pid1, 0)
-            os.waitpid(pid2, 0)
+            for pid in pids:
+                # Wait for all children
+                os.waitpid(pid, 0)
 
             continue
       
