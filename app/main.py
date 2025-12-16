@@ -138,10 +138,16 @@ def main():
 
             continue
             
-        elif command == "history":
-            for i in range(readline.get_current_history_length()):
-                print (f"    {i+1}  {readline.get_history_item(i+1)}")
-            
+        elif command.startswith("history"):
+            history_length = readline.get_current_history_length()
+            if command.replace("history", "").strip() == "":
+                for i in range(history_length):
+                    print (f"    {i+1}  {readline.get_history_item(i+1)}")
+            else:
+                limit = int(command.replace("history", "").strip())
+                for i in range(history_length - limit, history_length):
+                    print (f"    {i+1}  {readline.get_history_item(i+1)}")  
+                
             continue
       
         elif command.startswith("type"): 
