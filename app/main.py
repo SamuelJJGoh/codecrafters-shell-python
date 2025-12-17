@@ -11,6 +11,41 @@ directories = all_paths.split(":")
 # Track how many history entries have already been appended per file
 history_baseline = {}
 
+def find_executable(program_name):
+    for directory in directories:
+        candidate = os.path.join(directory, program_name)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+def init_readline():
+    readline.set_completer(built_in_completer)
+
+    if "libedit" in readline.__doc__:
+        readline.parse_and_bind("bind ^I rl_complete")  # TAB key for macOS
+    else:
+        readline.parse_and_bind("tab: complete")
+
+def get_histfile():
+    histfile = os.environ.get("HISTFILE")
+    return os.path.expanduser(histfile) if histfile else None
+
+def load_history(histfile):
+    if not histfile:
+        return
+    try:
+        readline.read_history_file(histfile)
+    except (FileNotFoundError, OSError):
+        pass
+
+def save_history(histfile):
+    if not histfile:
+        return
+    history_length = readline.get_current_history_length()
+    with open(histfile, "w") as f:
+        for i in range(history_length):
+            f.write(f"{readline.get_history_item(i+1)}\n")
+
 def run_builtin_for_pipeline(cmd, args):
 
     if cmd == "type":
@@ -21,13 +56,8 @@ def run_builtin_for_pipeline(cmd, args):
         if check in built_in_commands:
             print(f"{check} is a shell builtin")
         else:
-            found_path = None
-            for directory in directories:
-                potential_executable = directory + "/" + check
-                if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
-                    found_path = potential_executable
-                    break
-            if found_path:
+            found_path = find_executable(check)
+            if found_path is not None:
                 print(f"{check} is {found_path}")
             else:
                 print(f"{check}: not found")
@@ -48,7 +78,7 @@ def run_builtin_for_pipeline(cmd, args):
     elif cmd == "cd":
         os._exit(0)
 
-    return  # Not a builtin → fall back to execvp
+    return  # if not a builtin, fall back to execvp
 
 def built_in_completer(text, state):
     if text == "":
@@ -79,22 +109,11 @@ def built_in_completer(text, state):
         return None
 
 def main():
+    init_readline()
 
-    readline.set_completer(built_in_completer)
-
-    if "libedit" in readline.__doc__:
-        readline.parse_and_bind("bind ^I rl_complete") # TAB key for macOS
-    else:
-        readline.parse_and_bind("tab: complete")
-    
-    histfile = os.environ.get("HISTFILE")
-
-    if histfile:
-        histfile = os.path.expanduser(histfile)
-        try:
-            readline.read_history_file(histfile)
-        except (FileNotFoundError, OSError):
-            pass 
+    # Read history on start-up
+    histfile = get_histfile()
+    load_history(histfile)
 
     while True:
         command = input("$ ").strip()
@@ -153,7 +172,6 @@ def main():
         elif command.startswith("history"):
             history_length = readline.get_current_history_length()
             command = command.replace("history", "", 1).strip()
-
 
             if command == "":
                 for i in range(history_length):
@@ -219,24 +237,16 @@ def main():
             elif check_command in built_in_commands :
                 print(f"{check_command} is a shell builtin")
             else :
-                found_path = None
-                for directory in directories :
-                    potential_executable = directory + "/" + check_command
-                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK) :
-                        found_path = potential_executable
-                        break
-                if found_path:
+                found_path = find_executable(check_command)
+                if found_path is not None:
                     print(f"{check_command} is {found_path}")
                 else:
                     print(f"{check_command}: not found")
             continue
 
         elif command.strip() == "exit":
-            if histfile:
-                history_length = readline.get_current_history_length()
-                with open(histfile, "w") as f:
-                    for i in range(history_length):
-                        f.write(f"{readline.get_history_item(i+1)}\n")
+            # Write and append history on exit
+            save_history(histfile)
             break  
         
         # echo with redirect/append standard output
@@ -295,24 +305,20 @@ def main():
                 redir_args = args[:redir_operator_index]
                 redir_file = args[redir_operator_index + 1] 
 
-                for directory in directories:
-                    potential_executable = directory + "/" + program_name
-                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
-                        with open(redir_file, "w") as f:
-                            subprocess.run([potential_executable, *redir_args], stderr=f)
-                        break
+                executable = find_executable(program_name)
+                if executable is not None:
+                    with open(redir_file, "w") as f:
+                        subprocess.run([executable, *redir_args], stderr=f)
                 continue
             elif redir_append_operator:
                 redir_append_operator_index = args.index(redir_append_operator)
                 redir_append_args = args[:redir_append_operator_index]
                 redir_append_file = args[redir_append_operator_index + 1] 
 
-                for directory in directories:
-                    potential_executable = directory + "/" + program_name
-                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
-                        with open(redir_append_file, "a") as f:
-                            subprocess.run([potential_executable, *redir_append_args], stderr=f)
-                        break
+                executable = find_executable(program_name)
+                if executable is not None:
+                    with open(redir_append_file, "a") as f:
+                        subprocess.run([executable, *redir_append_args], stderr=f)
                 continue
         
         
@@ -338,24 +344,20 @@ def main():
                 redir_args = args[:redir_operator_index]
                 redir_file = args[redir_operator_index + 1] 
 
-                for directory in directories:
-                    potential_executable = directory + "/" + program_name
-                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
-                        with open(redir_file, "w") as f:
-                            subprocess.run([potential_executable, *redir_args], stdout=f)
-                        break
+                executable = find_executable(program_name)
+                if executable is not None:
+                    with open(redir_file, "w") as f:
+                        subprocess.run([executable, *redir_args], stdout=f)
                 continue
             elif redir_append_operator:
                 redir_append_operator_index = args.index(redir_append_operator)
                 redir_append_args = args[:redir_append_operator_index]
                 redir_append_file = args[redir_append_operator_index + 1] 
 
-                for directory in directories:
-                    potential_executable = directory + "/" + program_name
-                    if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK):
-                        with open(redir_append_file, "a") as f:
-                            subprocess.run([potential_executable, *redir_append_args], stdout=f)
-                        break
+                executable = find_executable(program_name)
+                if executable is not None:
+                    with open(redir_append_file, "a") as f:
+                        subprocess.run([executable, *redir_append_args], stdout=f)
                 continue
 
         elif command == "pwd":
@@ -377,14 +379,9 @@ def main():
             tokens = shlex.split(command)
             program_name, *args = tokens
             found_executable = False
-            for directory in directories :
-                potential_executable = directory + "/" + program_name
-                if os.path.isfile(potential_executable) and os.access(potential_executable, os.X_OK) :
-                    subprocess.call([program_name, *args])
-                    found_executable = True
-                    break
-                else : 
-                    continue
+            if find_executable(program_name) is not None:
+                subprocess.call([program_name, *args])
+                found_executable = True
             if found_executable :
                 continue
 
