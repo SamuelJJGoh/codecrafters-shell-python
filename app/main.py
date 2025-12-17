@@ -86,6 +86,15 @@ def main():
         readline.parse_and_bind("bind ^I rl_complete") # TAB key for macOS
     else:
         readline.parse_and_bind("tab: complete")
+    
+    histfile = os.environ.get("HISTFILE")
+
+    if histfile:
+        histfile = os.path.expanduser(histfile)
+        try:
+            readline.read_history_file(histfile)
+        except (FileNotFoundError, OSError):
+            pass 
 
     while True:
         command = input("$ ").strip()
@@ -144,6 +153,7 @@ def main():
         elif command.startswith("history"):
             history_length = readline.get_current_history_length()
             command = command.replace("history", "", 1).strip()
+
 
             if command == "":
                 for i in range(history_length):
