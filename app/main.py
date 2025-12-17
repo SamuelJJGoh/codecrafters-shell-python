@@ -232,6 +232,11 @@ def main():
             continue
 
         elif command.strip() == "exit":
+            if histfile:
+                history_length = readline.get_current_history_length()
+                with open(histfile, "w") as f:
+                    for i in range(history_length):
+                        f.write(f"{readline.get_history_item(i+1)}\n")
             break  
         
         # echo with redirect/append standard output
