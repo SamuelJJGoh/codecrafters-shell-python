@@ -2,7 +2,7 @@ import sys
 import os
 import subprocess
 import shlex
-import readline # macOS uses GNU readline
+import readline 
 
 built_in_commands = ["echo", "exit", "type", "pwd", "cd", "history"]
 all_paths = os.environ["PATH"]
