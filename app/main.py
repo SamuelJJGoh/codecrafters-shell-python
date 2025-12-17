@@ -2,11 +2,14 @@ import sys
 import os
 import subprocess
 import shlex
-import readline
+import readline # macOS uses GNU readline
 
 built_in_commands = ["echo", "exit", "type", "pwd", "cd", "history"]
 all_paths = os.environ["PATH"]
 directories = all_paths.split(":")
+
+# Track how many history entries have already been appended per file
+history_baseline = {}
 
 def run_builtin_for_pipeline(cmd, args):
 
@@ -158,11 +161,38 @@ def main():
                 continue
 
             elif command.startswith("-w"):
-                read_history_cmd = shlex.split(command)
-                file_path = read_history_cmd[1]
-                
+                write_history_cmd = shlex.split(command)
+                file_path = write_history_cmd[1]
+
                 candidate = os.path.join(os.getcwd(), file_path)
                 readline.write_history_file(candidate)
+                continue
+            
+            elif command.startswith("-a"):
+                append_history_cmd = shlex.split(command)
+                file_path = append_history_cmd[1]
+                candidate = os.path.join(os.getcwd(), file_path)
+
+                if candidate in history_baseline:
+                    baseline = history_baseline[candidate]
+                else:
+                    baseline = 0 # file has never been used
+                
+                current = readline.get_current_history_length()
+
+                # nothing new to append
+                if current <= baseline:
+                    continue
+
+                with open(candidate, "a") as file:
+                    for i in range(baseline+1, current+1):
+                        line = readline.get_history_item(i)
+                        if line:
+                            file.write(f"{line}\n")
+                
+                # update key candidate with value current so we only append new things
+                # next loop, baseline = current
+                history_baseline[candidate] = current
                 continue
 
             else:
